@@ -574,7 +574,7 @@ export default function LocationSearch({ selectedCategoryId }: LocationSearchPro
       
       <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
         <p>Search by name or coordinates. Try:</p>
-        <p className="mt-1">• "Bali Airport" • "Seminyak Beach" • "8.66326° S, 115.15880° E"</p>
+        <p className="mt-1">• &quot;Bali Airport&quot; • &quot;Seminyak Beach&quot; • &quot;8.66326° S, 115.15880° E&quot;</p>
       </div>
 
       {/* Confirmation Modal */}
