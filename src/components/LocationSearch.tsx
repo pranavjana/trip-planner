@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { MAPBOX_ACCESS_TOKEN } from '../config/mapbox';
 import { useMap } from '../context/MapContext';
-import { Category } from '../types';
 
 // Interface for suggestion results from SearchBox API
 interface SuggestionResult {
@@ -74,21 +73,6 @@ interface CustomResult {
   };
   feature_type: string;
 }
-
-// Combined type for all possible results
-type SearchResult = SuggestionResult | RetrieveResult | CustomResult;
-
-// List of common POI categories (based on Mapbox categories)
-const POI_CATEGORIES = [
-  'airport', 'aerodrome', 'airfield', 'amusement_park', 'aquarium', 'art_gallery', 
-  'attraction', 'bank', 'bar', 'beach', 'bus_station', 'cafe', 'campground', 
-  'car_rental', 'casino', 'cinema', 'clinic', 'college', 'embassy', 'ferry_terminal', 
-  'fuel', 'harbor', 'historic', 'hospital', 'hotel', 'landmark', 'library', 
-  'monument', 'museum', 'park', 'pharmacy', 'place_of_worship', 'police', 
-  'post_office', 'railway_station', 'restaurant', 'school', 'shopping_mall', 
-  'stadium', 'subway_station', 'supermarket', 'theater', 'tourist_attraction', 
-  'university', 'zoo'
-];
 
 // Props for LocationSearch component
 interface LocationSearchProps {
@@ -204,7 +188,7 @@ export default function LocationSearch({ selectedCategoryId }: LocationSearchPro
         
         const data = await response.json();
         // The Search Box API returns `suggestions` array
-        let apiSuggestions: SuggestionResult[] = data.suggestions || [];
+        const apiSuggestions: SuggestionResult[] = data.suggestions || [];
 
         // Handle special case for Bali Airport if not in results
         const lowerQuery = query.toLowerCase();
@@ -284,7 +268,7 @@ export default function LocationSearch({ selectedCategoryId }: LocationSearchPro
         if (data.features && data.features.length > 0) {
           const feat = data.features[0];
           // Extract geometry coordinates
-          const coords = (feat.geometry as any)?.coordinates;
+          const coords = (feat.geometry as { coordinates?: number[] })?.coordinates;
           if (Array.isArray(coords) && coords.length >= 2) {
             const [longitude, latitude] = coords;
             const retrieveResult: RetrieveResult = {
@@ -295,7 +279,7 @@ export default function LocationSearch({ selectedCategoryId }: LocationSearchPro
               coordinates: {
                 longitude,
                 latitude,
-                accuracy: (feat.coordinates as any)?.accuracy
+                accuracy: (feat.coordinates as { accuracy?: string })?.accuracy
               },
               language: feat.properties?.language || 'en',
               maki: feat.properties?.maki

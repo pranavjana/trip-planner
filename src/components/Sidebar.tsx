@@ -3,22 +3,9 @@
 import React, { useState } from 'react';
 import { useMap } from '../context/MapContext';
 import LocationSearch from './LocationSearch';
-import { Category, Location } from '../types';
+import { formatDistance, formatTime } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
-
-// Helper function to format time in hours and minutes
-const formatDuration = (seconds: number): string => {
-  if (!seconds) return 'N/A';
-  
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else {
-    return `${minutes} min`;
-  }
-};
+import { Location } from '../types';
 
 export default function Sidebar() {
   const {
@@ -205,7 +192,7 @@ export default function Sidebar() {
                   
                   {expandedCategories[categoryId] && (
                     <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {locs.map((location, index) => (
+                      {locs.map((location) => (
                         <li
                           key={location.id}
                           className="p-3 bg-white dark:bg-gray-800 flex justify-between items-start"
@@ -315,7 +302,7 @@ export default function Sidebar() {
                     </p>
                     {distance.drivingDistance ? (
                       <p>
-                        <span className="font-medium">By car:</span> {distance.drivingDistance.toFixed(2)} km
+                        <span className="font-medium">By car:</span> {formatDistance(distance.drivingDistance)}
                       </p>
                     ) : (
                       <p className="text-gray-400">Loading driving distance...</p>
@@ -326,7 +313,7 @@ export default function Sidebar() {
                     {distance.drivingDuration ? (
                       <>
                         <p>
-                          <span className="font-medium">Drive time:</span> {formatDuration(distance.drivingDuration)}
+                          <span className="font-medium">Drive time:</span> {formatTime(distance.drivingDuration)}
                         </p>
                         <p className="text-gray-400">
                           {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} → {' '}

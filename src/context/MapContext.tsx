@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Location, DistanceInfo, RouteGeometry, Category } from '../types';
+import { Location, DistanceInfo, Category } from '../types';
 import { calculateAllDirectDistances, generateId, calculateDirectDistance } from '../utils/mapUtils';
 import { MAPBOX_ACCESS_TOKEN } from '../config/mapbox';
 import { locationService, categoryService } from '../lib/supabase';
