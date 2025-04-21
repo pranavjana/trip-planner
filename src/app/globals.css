@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Ensure dark mode is properly applied based on system preference */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1a202c;
+    color: #f7fafc;
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
