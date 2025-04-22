@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_ACCESS_TOKEN, MAPBOX_STYLE } from '../config/mapbox';
@@ -8,9 +8,6 @@ import { BALI_CENTER, DEFAULT_ZOOM } from '../utils/mapUtils';
 import { useMap } from '../context/MapContext';
 import type { Feature, FeatureCollection, LineString } from 'geojson';
 import { Category, Location as MapLocation } from '../types';
-
-// Rename the browser Window.Location type to WindowLocation to avoid conflicts
-type WindowLocation = Location;
 
 mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
@@ -35,15 +32,15 @@ export default function Map() {
   const { locations, addLocation, distances, fetchDrivingRoutes, categories } = useMap();
 
   // Function to get a color for a location based on its category
-  const getLocationColor = (location: MapLocation): string => {
+  const getLocationColor = useCallback((location: MapLocation): string => {
     if (!location.categoryId) return DEFAULT_PIN_COLOR;
     
     const category = categories.find(cat => cat.id === location.categoryId);
     return category?.color || DEFAULT_PIN_COLOR;
-  };
+  }, [categories]);
   
   // Function to create SVG marker element with specific color
-  const createMarkerElement = (location: MapLocation, index: number): HTMLDivElement => {
+  const createMarkerElement = useCallback((location: MapLocation, index: number): HTMLDivElement => {
     const color = getLocationColor(location);
     
     const el = document.createElement('div');
@@ -83,7 +80,7 @@ export default function Map() {
     el.appendChild(indexEl);
     
     return el;
-  };
+  }, [getLocationColor]);
 
   // Initialize map
   useEffect(() => {
@@ -257,7 +254,7 @@ export default function Map() {
         maxZoom: 15
       });
     }
-  }, [locations, categories]);
+  }, [locations, categories, createMarkerElement]);
 
   // Toggle route visibility
   const toggleRoutes = () => {
