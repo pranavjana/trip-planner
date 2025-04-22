@@ -113,10 +113,10 @@ export const categoryService = {
   },
   
   // Update an existing category
-  async updateCategory(id: string, name: string): Promise<boolean> {
+  async updateCategory(id: string, updates: Partial<Category>): Promise<boolean> {
     const { error } = await supabase
       .from(CATEGORIES_TABLE)
-      .update({ name })
+      .update(updates)
       .eq('id', id);
       
     if (error) {

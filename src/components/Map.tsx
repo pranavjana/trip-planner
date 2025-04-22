@@ -7,12 +7,17 @@ import { MAPBOX_ACCESS_TOKEN, MAPBOX_STYLE } from '../config/mapbox';
 import { BALI_CENTER, DEFAULT_ZOOM } from '../utils/mapUtils';
 import { useMap } from '../context/MapContext';
 import type { Feature, FeatureCollection, LineString } from 'geojson';
-import { Category } from '../types';
+import { Category, Location as MapLocation } from '../types';
+
+// Rename the browser Window.Location type to WindowLocation to avoid conflicts
+type WindowLocation = Location;
 
 mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
 // Line layer source ID
 const ROUTE_SOURCE_ID = 'route-source';
+// Default pin color when no category is assigned
+const DEFAULT_PIN_COLOR = '#4B5563'; // gray-600 - slightly darker for better visibility
 
 export default function Map() {
   const mapContainer = useRef<HTMLDivElement | null>(null);
@@ -28,6 +33,57 @@ export default function Map() {
   const [newLocationCategoryId, setNewLocationCategoryId] = useState<string | undefined>(undefined);
   
   const { locations, addLocation, distances, fetchDrivingRoutes, categories } = useMap();
+
+  // Function to get a color for a location based on its category
+  const getLocationColor = (location: MapLocation): string => {
+    if (!location.categoryId) return DEFAULT_PIN_COLOR;
+    
+    const category = categories.find(cat => cat.id === location.categoryId);
+    return category?.color || DEFAULT_PIN_COLOR;
+  };
+  
+  // Function to create SVG marker element with specific color
+  const createMarkerElement = (location: MapLocation, index: number): HTMLDivElement => {
+    const color = getLocationColor(location);
+    
+    const el = document.createElement('div');
+    el.className = 'marker';
+    el.style.width = '25px';
+    el.style.height = '25px';
+    el.style.cursor = 'pointer';
+    
+    // Create a colored SVG pin dynamically
+    const svgPin = `
+      <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 0C7.163 0 0 7.163 0 16C0 24.837 16 42 16 42C16 42 32 24.837 32 16C32 7.163 24.837 0 16 0ZM16 
+        23C12.134 23 9 19.866 9 16C9 12.134 12.134 9 16 9C19.866 9 23 12.134 23 16C23 19.866 19.866 23 16 23Z" fill="${color}"/>
+      </svg>
+    `;
+    
+    // Convert the SVG to a data URL
+    const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgPin)}`;
+    el.style.backgroundImage = `url('${svgDataUrl}')`;
+    el.style.backgroundSize = 'contain';
+    el.style.backgroundRepeat = 'no-repeat';
+    el.style.backgroundPosition = 'center';
+    el.style.filter = `drop-shadow(0 1px 2px rgb(0 0 0 / 0.1)) drop-shadow(0 1px 1px rgb(0 0 0 / 0.06))`;
+    
+    // Add index number to the marker
+    const indexEl = document.createElement('div');
+    indexEl.className = 'marker-index';
+    indexEl.textContent = (index + 1).toString();
+    indexEl.style.position = 'absolute';
+    indexEl.style.top = '5px';
+    indexEl.style.left = '0';
+    indexEl.style.right = '0';
+    indexEl.style.textAlign = 'center';
+    indexEl.style.color = 'white';
+    indexEl.style.fontWeight = 'bold';
+    indexEl.style.fontSize = '12px';
+    el.appendChild(indexEl);
+    
+    return el;
+  };
 
   // Initialize map
   useEffect(() => {
@@ -56,15 +112,7 @@ export default function Map() {
       'top-right'
     );
 
-    // Handle map click events
-    map.current.on('click', (e) => {
-      const coordinates: [number, number] = [e.lngLat.lng, e.lngLat.lat];
-      
-      // Use the new naming modal instead of the old one
-      setNewLocationCoords(coordinates);
-      setNewLocationName(`Location at ${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}`);
-      setShowNameModal(true);
-    });
+    // Removed map click handler - users can no longer add locations by clicking on the map
     
     // Add source and layer for connecting lines when map loads
     map.current.on('load', () => {
@@ -167,36 +215,21 @@ export default function Map() {
 
     // Add or update markers for all locations
     locations.forEach((location, index) => {
-      // If marker already exists, skip
-      if (markers.current[location.id]) return;
+      // If marker already exists, update it
+      if (markers.current[location.id]) {
+        // Remove old marker
+        markers.current[location.id].remove();
+        delete markers.current[location.id];
+      }
       
-      // Create a new marker
-      const el = document.createElement('div');
-      el.className = 'marker';
-      el.style.width = '25px';
-      el.style.height = '25px';
-      el.style.backgroundImage = 'url(/pin.svg)';
-      el.style.backgroundSize = 'cover';
-      el.style.cursor = 'pointer';
-      
-      // Add index number to the marker
-      const indexEl = document.createElement('div');
-      indexEl.className = 'marker-index';
-      indexEl.textContent = (index + 1).toString();
-      indexEl.style.position = 'absolute';
-      indexEl.style.top = '5px';
-      indexEl.style.left = '0';
-      indexEl.style.right = '0';
-      indexEl.style.textAlign = 'center';
-      indexEl.style.color = 'white';
-      indexEl.style.fontWeight = 'bold';
-      indexEl.style.fontSize = '12px';
-      el.appendChild(indexEl);
+      // Create a new marker with appropriate color
+      const el = createMarkerElement(location, index);
       
       // Create the popup
       const popup = new mapboxgl.Popup({ offset: 25 })
         .setHTML(`
           <h3 class="font-bold text-sm">${location.name}</h3>
+          <p class="text-xs">${location.categoryId ? `Category: ${categories.find(c => c.id === location.categoryId)?.name || 'Unknown'}` : ''}</p>
           <p class="text-xs">Coordinates: ${location.coordinates.map(c => c.toFixed(4)).join(', ')}</p>
         `);
       
@@ -224,7 +257,7 @@ export default function Map() {
         maxZoom: 15
       });
     }
-  }, [locations]);
+  }, [locations, categories]);
 
   // Toggle route visibility
   const toggleRoutes = () => {
@@ -267,7 +300,7 @@ export default function Map() {
       
       {/* Help overlay - small instructions */}
       <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 p-2 rounded shadow-md text-xs max-w-xs opacity-80">
-        <p>Click on the map to add locations or use the search bar</p>
+        <p>Use the search bar to add locations to your trip</p>
       </div>
       
       {/* Map controls */}

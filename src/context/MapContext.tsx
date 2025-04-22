@@ -15,9 +15,9 @@ interface MapContextProps {
   clearLocations: () => void;
   fetchDrivingRoutes: (fromId?: string, toId?: string) => Promise<void>;
   categories: Category[];
-  addCategory: (name: string) => void;
+  addCategory: (name: string, color?: string) => void;
   removeCategory: (id: string) => void;
-  updateCategory: (id: string, name: string) => void;
+  updateCategory: (id: string, name: string, color?: string) => void;
   clearCategories: () => void;
   isLoading: boolean;
 }
@@ -27,6 +27,20 @@ const MapContext = createContext<MapContextProps | undefined>(undefined);
 // Simple "anonymous" user ID for Supabase when not using real auth
 // In a real app, this would come from authentication
 const ANONYMOUS_USER_ID = 'bali-trip-planner-user';
+
+// Define a list of default colors to use for categories
+const DEFAULT_COLORS = [
+  '#3B82F6', // blue-500
+  '#EF4444', // red-500
+  '#10B981', // emerald-500
+  '#F59E0B', // amber-500
+  '#8B5CF6', // violet-500
+  '#EC4899', // pink-500
+  '#14B8A6', // teal-500
+  '#F97316', // orange-500
+  '#6366F1', // indigo-500
+  '#84CC16', // lime-500
+];
 
 export function MapProvider({ children }: { children: ReactNode }) {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -276,11 +290,15 @@ export function MapProvider({ children }: { children: ReactNode }) {
   };
 
   // Category management with Supabase
-  const addCategory = async (name: string) => {
+  const addCategory = async (name: string, color?: string) => {
     setIsLoading(true);
+    
+    // Generate a color if not provided
+    const categoryColor = color || DEFAULT_COLORS[categories.length % DEFAULT_COLORS.length];
     
     const newCategoryData = {
       name,
+      color: categoryColor,
       user_id: ANONYMOUS_USER_ID
     };
     
@@ -292,13 +310,13 @@ export function MapProvider({ children }: { children: ReactNode }) {
         setCategories([...categories, savedCategory]);
       } else {
         // If Supabase fails, fallback to client-side ID generation
-        const newCat: Category = { id: generateId(), name };
+        const newCat: Category = { id: generateId(), name, color: categoryColor };
         setCategories([...categories, newCat]);
       }
     } catch (error) {
       console.error('Error adding category to Supabase:', error);
       // Fallback to client-side ID
-      const newCat: Category = { id: generateId(), name };
+      const newCat: Category = { id: generateId(), name, color: categoryColor };
       setCategories([...categories, newCat]);
     } finally {
       setIsLoading(false);
@@ -322,17 +340,25 @@ export function MapProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateCategory = async (id: string, name: string) => {
+  const updateCategory = async (id: string, name: string, color?: string) => {
     setIsLoading(true);
+    
+    // Only include color in updates if provided
+    const updates: { name: string; color?: string } = { name };
+    if (color) {
+      updates.color = color;
+    }
     
     try {
       // Try to update in Supabase first
-      await categoryService.updateCategory(id, name);
+      await categoryService.updateCategory(id, updates);
     } catch (error) {
       console.error('Error updating category in Supabase:', error);
     } finally {
       // Always update the local state regardless of Supabase result
-      setCategories(categories.map(c => c.id === id ? { ...c, name } : c));
+      setCategories(categories.map(c => 
+        c.id === id ? { ...c, ...updates } : c
+      ));
       setIsLoading(false);
     }
   };

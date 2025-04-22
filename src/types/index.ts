@@ -1,6 +1,7 @@
 export interface Category {
   id: string;
   name: string;
+  color: string; // Hex color code for map pins
 }
 
 export interface Location {

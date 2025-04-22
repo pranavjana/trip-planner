@@ -5,7 +5,21 @@ import { useMap } from '../context/MapContext';
 import LocationSearch from './LocationSearch';
 import { formatDistance, formatTime } from '../utils/helpers';
 import { useAuth } from '../context/AuthContext';
-import { Location } from '../types';
+import { Location, Category } from '../types';
+
+// Predefined colors for category selection
+const COLOR_PALETTE = [
+  '#3B82F6', // blue-500
+  '#EF4444', // red-500 
+  '#10B981', // emerald-500
+  '#F59E0B', // amber-500
+  '#8B5CF6', // violet-500
+  '#EC4899', // pink-500
+  '#14B8A6', // teal-500
+  '#F97316', // orange-500
+  '#6366F1', // indigo-500
+  '#84CC16', // lime-500
+];
 
 export default function Sidebar() {
   const {
@@ -17,11 +31,17 @@ export default function Sidebar() {
     categories,
     addCategory,
     removeCategory,
+    updateCategory,
     clearCategories,
   } = useMap();
   const { logout } = useAuth();
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState(COLOR_PALETTE[0]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+  // For editing categories
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+  const [editCategoryColor, setEditCategoryColor] = useState('');
   // For collapsible categories
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   // For route planner
@@ -74,6 +94,48 @@ export default function Sidebar() {
     return category ? category.name : 'Unknown';
   };
 
+  // Start editing a category
+  const startEditCategory = (category: Category) => {
+    setEditingCategoryId(category.id);
+    setEditCategoryName(category.name);
+    setEditCategoryColor(category.color);
+  };
+  
+  // Cancel editing
+  const cancelEditCategory = () => {
+    setEditingCategoryId(null);
+    setEditCategoryName('');
+    setEditCategoryColor('');
+  };
+  
+  // Save category edits
+  const saveEditCategory = (id: string) => {
+    if (editCategoryName.trim()) {
+      updateCategory(id, editCategoryName, editCategoryColor);
+      setEditingCategoryId(null);
+      setEditCategoryName('');
+      setEditCategoryColor('');
+    }
+  };
+
+  // Color picker with predefined colors - mobile friendly
+  const ColorPicker = ({ selectedColor, onChange }: { selectedColor: string; onChange: (color: string) => void }) => {
+    return (
+      <div className="flex flex-wrap gap-1 mt-2">
+        {COLOR_PALETTE.map((color) => (
+          <button
+            key={color}
+            type="button"
+            className={`w-7 h-7 rounded-full border-2 ${selectedColor === color ? 'border-gray-800 dark:border-white' : 'border-transparent'}`}
+            style={{ backgroundColor: color }}
+            onClick={() => onChange(color)}
+            aria-label={`Select color ${color}`}
+          />
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="w-full h-full overflow-y-auto bg-white dark:bg-gray-800 p-4 shadow-lg">
       <div className="flex justify-between items-center mb-4">
@@ -107,7 +169,7 @@ export default function Sidebar() {
       {/* Category Management */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-2">Categories</h3>
-        <div className="flex gap-2 mb-2">
+        <div className="flex flex-col gap-2 mb-2">
           <input
             type="text"
             className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
@@ -115,40 +177,105 @@ export default function Sidebar() {
             value={newCategoryName}
             onChange={(e) => setNewCategoryName(e.target.value)}
           />
+          
+          {/* Mobile-friendly color picker */}
+          <div className="mb-2">
+            <label className="text-sm text-gray-600 dark:text-gray-400">Select a color:</label>
+            <ColorPicker 
+              selectedColor={newCategoryColor} 
+              onChange={setNewCategoryColor} 
+            />
+          </div>
+          
           <button
             onClick={() => { 
               if (newCategoryName.trim()) {
-                addCategory(newCategoryName); 
+                addCategory(newCategoryName, newCategoryColor); 
                 setNewCategoryName('');
+                // Keep the color for next category if user wants to create multiple with same color
               }
             }}
             disabled={!newCategoryName.trim()}
-            className="px-3 py-1.5 bg-green-500 text-white rounded text-sm"
+            className="py-1.5 bg-green-500 text-white rounded text-sm w-full"
           >
-            Add
+            Add Category
           </button>
         </div>
+        
         {categories.length > 0 ? (
           <ul className="space-y-1 mb-2">
             {categories.map(cat => (
-              <li key={cat.id} className="flex items-center justify-between">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="selectedCategory"
-                    value={cat.id}
-                    checked={selectedCategoryId === cat.id}
-                    onChange={() => setSelectedCategoryId(cat.id)}
-                    className="mr-2"
-                  />
-                  <span>{cat.name}</span>
-                </label>
-                <button
-                  onClick={() => removeCategory(cat.id)}
-                  className="text-red-500 hover:text-red-700 text-sm ml-2"
-                >
-                  ×
-                </button>
+              <li key={cat.id} className="flex items-center justify-between border-b pb-1 last:border-b-0">
+                {editingCategoryId === cat.id ? (
+                  // Editing mode
+                  <div className="flex flex-col w-full">
+                    <input
+                      type="text"
+                      className="w-full p-1 border rounded dark:bg-gray-700 dark:border-gray-600 text-sm"
+                      value={editCategoryName}
+                      onChange={(e) => setEditCategoryName(e.target.value)}
+                      autoFocus
+                    />
+                    {/* Mobile-friendly color picker for editing */}
+                    <ColorPicker 
+                      selectedColor={editCategoryColor} 
+                      onChange={setEditCategoryColor} 
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button
+                        onClick={() => saveEditCategory(cat.id)}
+                        className="px-2 py-1 bg-green-500 text-white text-sm rounded mr-2"
+                        title="Save changes"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelEditCategory}
+                        className="px-2 py-1 bg-gray-200 dark:bg-gray-700 text-sm rounded"
+                        title="Cancel editing"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // Normal display mode
+                  <div className="flex items-center justify-between w-full">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="selectedCategory"
+                        value={cat.id}
+                        checked={selectedCategoryId === cat.id}
+                        onChange={() => setSelectedCategoryId(cat.id)}
+                        className="mr-2"
+                      />
+                      <span 
+                        className="flex items-center"
+                        style={{ color: cat.color }}
+                      >
+                        <span className="flex-shrink-0 w-3 h-3 rounded-full mr-2" style={{ backgroundColor: cat.color }}></span>
+                        {cat.name}
+                      </span>
+                    </label>
+                    <div className="flex">
+                      <button
+                        onClick={() => startEditCategory(cat)}
+                        className="text-blue-500 hover:text-blue-700 text-sm ml-2"
+                        title="Edit category"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        onClick={() => removeCategory(cat.id)}
+                        className="text-red-500 hover:text-red-700 text-sm ml-2"
+                        title="Delete category"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -172,7 +299,7 @@ export default function Sidebar() {
         <h3 className="text-lg font-semibold mb-2">Saved Locations ({locations.length})</h3>
         {locations.length === 0 ? (
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            Click on the map or search to add locations
+            Use the search bar to add locations
           </p>
         ) : (
           <div className="space-y-2">
